@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paneltest"
+version = "1.0.0"
+description = "Kiem tra man hinh laptop (eDP) tren Ubuntu Server, khong can do hoa"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+keywords = ["edid", "framebuffer", "dead-pixel", "backlight", "ubuntu-server", "drm"]
+
+[project.scripts]
+paneltest = "paneltest.paneltest:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

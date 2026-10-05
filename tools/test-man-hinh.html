@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test man hinh - kiem tra panel laptop vua thay</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#000;color:#fff;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;transition:background .15s}
+  #hint{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:13px;
+    color:#888;background:rgba(0,0,0,.55);padding:6px;z-index:5}
+  #bar{position:fixed;top:0;left:0;right:0;display:flex;gap:6px;flex-wrap:wrap;
+    padding:8px;background:rgba(0,0,0,.7);z-index:6}
+  #bar button{background:#222;color:#eee;border:1px solid #444;border-radius:6px;
+    padding:6px 10px;font-size:13px;cursor:pointer}
+  #bar button:hover{background:#333}
+  #bar button.on{background:#0a7;border-color:#0a7;color:#000}
+  #label{position:fixed;top:52px;left:0;right:0;text-align:center;font-size:14px;
+    color:#999;z-index:5}
+  canvas{display:block}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="bar">
+  <button data-m="white">Trang</button>
+  <button data-m="black">Den</button>
+  <button data-m="red">Do</button>
+  <button data-m="green">Luc</button>
+  <button data-m="blue">Lam</button>
+  <button data-m="gray">Xam 50%</button>
+  <button data-m="gray25">Xam 25%</button>
+  <button data-m="rgb">Do/Luc/Lam</button>
+  <button data-m="checker">Ca-ro</button>
+  <button data-m="grid">Luoi 1px</button>
+  <button data-m="gradient">Gradient</button>
+  <button data-m="scroll">Chu chay</button>
+  <button data-m="bars">Color bars</button>
+  <button id="fs">Toan man hinh</button>
+  <button id="hide">An thanh nay</button>
+</div>
+<div id="label"></div>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="hint">Phim 1-9: doi mau &nbsp;|&nbsp; C: ca-ro &nbsp;|&nbsp; G: luoi &nbsp;|&nbsp; F: toan man hinh &nbsp;|&nbsp; Mui ten trai/phai: mau truoc/sau</div>
+
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const stage = document.getElementById('stage'), label = document.getElementById('label');
+let mode = 'white';
+
+const SOLID = {white:'#ffffff', black:'#000000', red:'#ff0000', green:'#00ff00',
+               blue:'#0000ff', gray:'#808080', gray25:'#404040'};
+const ORDER = ['white','black','red','green','blue','gray','gray25','rgb','checker','grid','gradient','scroll','bars'];
+const NOTE = {
+  white:'Trang: tim diem chet mau den, vet ban, ho quang (backlight bleed), sang khong deu',
+  black:'Den: tim diem chet sang (stuck pixel) - tat den phong de thay ro',
+  red:'Do: kiem tra kenh mau do, diem chet xanh/luc',
+  green:'Luc: kenh mau luc',
+  blue:'Lam: kenh mau lam',
+  gray:'Xam 50%: phat hien loang mau, clouding, vung sang toi',
+  gray25:'Xam 25%: nhay hon de thay clouding va ho quang',
+  rgb:'3 mau co ban: kiem tra thu tu mau va vien man hinh',
+  checker:'Ca-ro: phat hien man hinh bi keo gian / sai ti le pixel',
+  grid:'Luoi 1px: tim hang/cot pixel chet va kiem tra 4 vien man hinh',
+  gradient:'Gradient: kiem tra banding (dut bac mau) va do muot chuyen mau',
+  scroll:'Chu chay: kiem tra gao (ghosting), soi cap, nhieu',
+  bars:'Color bars: doi chieu mau tong the voi man hinh khac'
+};
+
+function fit(){ cv.width = innerWidth; cv.height = innerHeight; draw(); }
+addEventListener('resize', fit);
+
+function draw(){
+  const W = cv.width, H = cv.height;
+  stage.style.background = SOLID[mode] || '#000';
+  cv.style.display = 'block';
+  ctx.clearRect(0,0,W,H);
+  label.textContent = NOTE[mode] || '';
+  document.querySelectorAll('#bar button[data-m]').forEach(b=>b.classList.toggle('on', b.dataset.m===mode));
+
+  if (mode === 'rgb') {
+    const t = Math.floor(W/3);
+    ctx.fillStyle='#ff0000'; ctx.fillRect(0,0,t,H);
+    ctx.fillStyle='#00ff00'; ctx.fillRect(t,0,t,H);
+    ctx.fillStyle='#0000ff'; ctx.fillRect(t*2,0,W-t*2,H);
+  } else if (mode === 'checker') {
+    const s = 16;
+    for (let y=0;y<H;y+=s) for (let x=0;x<W;x+=s) {
+      ctx.fillStyle = (((x/s)|0)+((y/s)|0))%2 ? '#000' : '#fff';
+      ctx.fillRect(x,y,s,s);
+    }
+  } else if (mode === 'grid') {
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#fff';
+    const step = Math.max(Math.floor(W/32),1);
+    for (let x=0;x<W;x+=step) ctx.fillRect(x,0,1,H);
+    for (let y=0;y<H;y+=step) ctx.fillRect(0,y,W,1);
+    ctx.fillRect(0,0,W,1); ctx.fillRect(0,H-1,W,1);
+    ctx.fillRect(0,0,1,H); ctx.fillRect(W-1,0,1,H);
+  } else if (mode === 'gradient') {
+    const g = ctx.createLinearGradient(0,0,W,0);
+    for (let i=0;i<=32;i++) { const v = Math.round(i*255/32); g.addColorStop(i/32, `rgb(${v},${v},${v})`); }
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const g2 = ctx.createLinearGradient(0,0,W,0);
+    for (let i=0;i<=32;i++) { const v = Math.round(i*255/32); g2.addColorStop(i/32, `rgb(${v},0,0)`); }
+    ctx.fillStyle=g2; ctx.fillRect(0,H*0.5,W,H*0.5);
+  } else if (mode === 'bars') {
+    const cols=['#c0c0c0','#c0c000','#00c0c0','#00c000','#c000c0','#c00000','#0000c0'];
+    const t=W/cols.length;
+    cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(i*t,0,Math.ceil(t),H*0.67);});
+    ['#0000c0','#131313','#c000c0','#131313','#00c0c0','#131313'].forEach((c,i)=>{
+      ctx.fillStyle=c;ctx.fillRect(i*t,H*0.67,Math.ceil(t),H*0.33);});
+  } else if (mode === 'scroll') {
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#fff'; ctx.font = 'bold 48px system-ui, sans-serif';
+    const y = (Date.now()/8) % (H+60);
+    ctx.fillText('KIEM TRA MAN HINH - laptop vua thay panel - 0123456789', 20, y);
+    for (let i=1;i<=3;i++) ctx.fillText('KIEM TRA MAN HINH - laptop vua thay panel - 0123456789', 20, y+i*(H+60)-(H+60)*3);
+  }
+}
+
+let raf=null;
+function loop(){ if(mode==='scroll'){draw();} raf=requestAnimationFrame(loop); }
+loop();
+
+function set(m){ mode=m; draw(); }
+document.querySelectorAll('#bar button[data-m]').forEach(b=>b.onclick=()=>set(b.dataset.m));
+document.getElementById('hide').onclick=()=>{
+  document.getElementById('bar').classList.toggle('hidden');
+  document.getElementById('hint').classList.toggle('hidden');
+  label.classList.toggle('hidden');
+  setTimeout(fit,50);
+};
+document.getElementById('fs').onclick=()=>{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+};
+addEventListener('keydown',e=>{
+  const map={'1':'white','2':'black','3':'red','4':'green','5':'blue','6':'gray','7':'gray25','8':'rgb'};
+  if(map[e.key]) set(map[e.key]);
+  else if(e.key==='c') set('checker');
+  else if(e.key==='g') set('grid');
+  else if(e.key==='f') document.getElementById('fs').click();
+  else if(e.key==='ArrowRight') set(ORDER[(ORDER.indexOf(mode)+1)%ORDER.length]);
+  else if(e.key==='ArrowLeft') set(ORDER[(ORDER.indexOf(mode)-1+ORDER.length)%ORDER.length]);
+});
+setInterval(fit, 1000);
+fit();
+</script>
+</body>
+</html>
